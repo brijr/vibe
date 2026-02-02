@@ -26,7 +26,7 @@ ${content}`;
   return {
     output: text,
     model: "claude-sonnet-4.5",
-    tokensUsed: (usage?.promptTokens ?? 0) + (usage?.completionTokens ?? 0),
+    tokensUsed: (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
   };
 }
 
@@ -39,6 +39,6 @@ export async function summarizeContent(content: string) {
   return {
     output: text,
     model: "claude-sonnet-4.5",
-    tokensUsed: (usage?.promptTokens ?? 0) + (usage?.completionTokens ?? 0),
+    tokensUsed: (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
   };
 }
