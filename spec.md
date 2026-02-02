@@ -11,7 +11,7 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 | Framework | Next.js 16 | App router, server actions, Turbopack default |
 | Database | Neon (Postgres) | Serverless, use `@neondatabase/serverless` |
 | ORM | Drizzle | Type-safe, use `drizzle-orm` + `drizzle-kit` |
-| Auth | Clerk | `@clerk/nextjs` v5+, middleware-based |
+| Auth | Better Auth | Self-hosted, TypeScript-first, `better-auth` |
 | Styling | Tailwind CSS v4 + shadcn/ui | Use `npx shadcn@latest init` |
 | Forms | React Hook Form + Zod | `@hookform/resolvers` for zod |
 | Charts | Recharts | Dynamic import, wrap in client components |
@@ -40,8 +40,8 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 │   │   │   └── settings/
 │   │   │       └── page.tsx
 │   │   ├── api/
-│   │   │   ├── webhooks/
-│   │   │   │   └── clerk/route.ts
+│   │   │   ├── auth/
+│   │   │   │   └── [...all]/route.ts    # Better Auth handler
 │   │   │   └── ai/
 │   │   │       └── analyze/route.ts
 │   │   ├── layout.tsx
@@ -72,7 +72,8 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 │   │   ├── ai/
 │   │   │   ├── client.ts
 │   │   │   └── prompts.ts
-│   │   ├── auth.ts
+│   │   ├── auth.ts                    # Better Auth server config
+│   │   ├── auth-client.ts             # Better Auth client
 │   │   ├── utils.ts                   # cn(), formatDate(), serializeForClient()
 │   │   └── validators.ts
 │   ├── actions/
@@ -88,7 +89,6 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 │   └── migrations/
 ├── drizzle.config.ts
 ├── next.config.ts
-├── proxy.ts
 ├── .env.example
 ├── .env.local (gitignored)
 └── package.json
@@ -96,7 +96,7 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 
 ## Database Schema
 
-Use Drizzle with the following schema. Use `cuid2` for IDs via `@paralleldrive/cuid2`.
+Use Drizzle with the following schema. Better Auth manages its own `user`, `session`, `account`, and `verification` tables. We extend the user table with organization membership.
 
 ```typescript
 // src/lib/db/schema.ts
@@ -107,33 +107,77 @@ import { createId } from '@paralleldrive/cuid2';
 // Enums
 export const documentStatusEnum = pgEnum('document_status', [
   'pending',
-  'processing', 
+  'processing',
   'completed',
   'failed'
 ]);
 
 export const userRoleEnum = pgEnum('user_role', ['owner', 'admin', 'member']);
 
+// ============================================
+// Better Auth Tables (managed by better-auth)
+// Run: npx @better-auth/cli generate
+// ============================================
+
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  // Extended fields for multi-tenancy
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+  role: userRoleEnum('role').default('member').notNull(),
+});
+
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expires_at').notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+});
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at'),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ============================================
+// Application Tables
+// ============================================
+
 // Organizations (firms/tenants)
 export const organizations = pgTable('organizations', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   name: text('name').notNull(),
   slug: text('slug').unique().notNull(),
-  clerkOrgId: text('clerk_org_id').unique(), // optional clerk org sync
   settings: jsonb('settings').$type<OrgSettings>().default({}),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Users (synced from Clerk)
-export const users = pgTable('users', {
-  id: text('id').primaryKey(), // clerk user id
-  email: text('email').notNull(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
-  imageUrl: text('image_url'),
-  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
-  role: userRoleEnum('role').default('member').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -142,7 +186,7 @@ export const users = pgTable('users', {
 export const documents = pgTable('documents', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+  createdById: text('created_by_id').references(() => user.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   description: text('description'),
   fileUrl: text('file_url'),
@@ -158,27 +202,46 @@ export const documents = pgTable('documents', {
 export const activityLogs = pgTable('activity_logs', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
-  action: text('action').notNull(), // 'document.created', 'document.analyzed', etc.
-  resourceType: text('resource_type').notNull(), // 'document', 'organization', etc.
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  action: text('action').notNull(),
+  resourceType: text('resource_type').notNull(),
   resourceId: text('resource_id'),
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// ============================================
 // Relations
+// ============================================
+
 export const organizationsRelations = relations(organizations, ({ many }) => ({
-  users: many(users),
+  users: many(user),
   documents: many(documents),
   activityLogs: many(activityLogs),
 }));
 
-export const usersRelations = relations(users, ({ one, many }) => ({
+export const userRelations = relations(user, ({ one, many }) => ({
   organization: one(organizations, {
-    fields: [users.organizationId],
+    fields: [user.organizationId],
     references: [organizations.id],
   }),
+  sessions: many(session),
+  accounts: many(account),
   documents: many(documents),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, {
+    fields: [session.userId],
+    references: [user.id],
+  }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
+  }),
 }));
 
 export const documentsRelations = relations(documents, ({ one }) => ({
@@ -186,9 +249,9 @@ export const documentsRelations = relations(documents, ({ one }) => ({
     fields: [documents.organizationId],
     references: [organizations.id],
   }),
-  createdBy: one(users, {
+  createdBy: one(user, {
     fields: [documents.createdById],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 ```
@@ -254,16 +317,9 @@ export interface SerializedDocument {
 # Database (Neon)
 DATABASE_URL="postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/dbname?sslmode=require"
 
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_xxx"
-CLERK_SECRET_KEY="sk_test_xxx"
-CLERK_WEBHOOK_SECRET="whsec_xxx"
-
-# Clerk URLs
-NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
-NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/dashboard"
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/dashboard"
+# Better Auth
+BETTER_AUTH_SECRET="your-secret-key-min-32-chars"  # Generate: openssl rand -base64 32
+BETTER_AUTH_URL="http://localhost:3000"
 
 # Anthropic
 ANTHROPIC_API_KEY="sk-ant-xxx"
@@ -327,89 +383,161 @@ const nextConfig: NextConfig = {
       'recharts',
     ],
   },
-  // Add remote image domains if needed
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'img.clerk.com',
-      },
-    ],
-  },
 };
 
 export default nextConfig;
 ```
 
-### 5. Proxy (replaces Middleware in Next.js 16)
-
-```typescript
-// proxy.ts (root level - NOT middleware.ts)
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/webhooks(.*)',
-]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
-});
-
-export const config = {
-  matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    '/(api|trpc)(.*)',
-  ],
-};
-```
-
-> **Next.js 16 Breaking Change**: `middleware.ts` is renamed to `proxy.ts`. The file should be at the root level (same level as `package.json` or in `src/`). The function export can still be named anything, but `proxy` is recommended. Proxy now runs on Node.js runtime by default (not Edge).
-
-### 6. Auth Helpers
+### 4. Better Auth Server Config
 
 ```typescript
 // src/lib/auth.ts
-import { auth, currentUser } from '@clerk/nextjs/server';
-import { cache } from 'react';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from './db';
-import { users } from './db/schema';
+import * as schema from './db/schema';
+
+export const auth = betterAuth({
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+    schema: {
+      user: schema.user,
+      session: schema.session,
+      account: schema.account,
+      verification: schema.verification,
+    },
+  }),
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false, // Set true for production
+  },
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24, // 1 day
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5, // 5 minutes
+    },
+  },
+  user: {
+    additionalFields: {
+      organizationId: {
+        type: 'string',
+        required: false,
+      },
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'member',
+      },
+    },
+  },
+});
+
+export type Session = typeof auth.$Infer.Session;
+```
+
+### 5. Better Auth Client
+
+```typescript
+// src/lib/auth-client.ts
+import { createAuthClient } from 'better-auth/react';
+
+export const authClient = createAuthClient({
+  baseURL: process.env.NEXT_PUBLIC_APP_URL,
+});
+
+export const {
+  signIn,
+  signUp,
+  signOut,
+  useSession,
+  getSession,
+} = authClient;
+```
+
+### 6. Better Auth API Route
+
+```typescript
+// src/app/api/auth/[...all]/route.ts
+import { auth } from '@/lib/auth';
+import { toNextJsHandler } from 'better-auth/next-js';
+
+export const { POST, GET } = toNextJsHandler(auth);
+```
+
+### 7. Auth Helpers
+
+```typescript
+// src/lib/auth-helpers.ts
+import { cache } from 'react';
+import { headers } from 'next/headers';
+import { auth } from './auth';
+import { db } from './db';
+import { user } from './db/schema';
 import { eq } from 'drizzle-orm';
 
-// React.cache() deduplicates within a single request
-// Multiple calls to getCurrentUser() in the same request will only hit the DB once
-export const getCurrentUser = cache(async () => {
-  const { userId } = await auth();
-  if (!userId) return null;
+// Get session from Better Auth (server-side)
+export const getServerSession = cache(async () => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  return session;
+});
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
+// Get current user with organization data
+export const getCurrentUser = cache(async () => {
+  const session = await getServerSession();
+  if (!session?.user) return null;
+
+  const dbUser = await db.query.user.findFirst({
+    where: eq(user.id, session.user.id),
     with: {
       organization: true,
     },
   });
 
-  return user;
+  return dbUser;
 });
 
 export async function requireUser() {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('Unauthorized');
-  return user;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) throw new Error('Unauthorized');
+  return currentUser;
 }
 
 export async function requireOrg() {
-  const user = await requireUser();
-  if (!user.organizationId) throw new Error('No organization');
-  return { user, organizationId: user.organizationId };
+  const currentUser = await requireUser();
+  if (!currentUser.organizationId) throw new Error('No organization');
+  return { user: currentUser, organizationId: currentUser.organizationId };
 }
 ```
 
-### 7. Utility Functions
+### 8. Root Layout
+
+```typescript
+// src/app/layout.tsx
+import './globals.css';
+
+export const metadata = {
+  title: 'SaaS Starter',
+  description: 'Multi-tenant SaaS application',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+### 9. Utility Functions
 
 ```typescript
 // src/lib/utils.ts
@@ -449,88 +577,7 @@ export function serializeForClient<T extends Record<string, unknown>>(
 }
 ```
 
-### 8. Clerk Webhook Handler
-
-```typescript
-// src/app/api/webhooks/clerk/route.ts
-import { Webhook } from 'svix';
-import { headers } from 'next/headers';
-import { WebhookEvent } from '@clerk/nextjs/server';
-import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-
-export async function POST(req: Request) {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
-  if (!WEBHOOK_SECRET) {
-    throw new Error('Missing CLERK_WEBHOOK_SECRET');
-  }
-
-  const headerPayload = await headers();
-  const svix_id = headerPayload.get('svix-id');
-  const svix_timestamp = headerPayload.get('svix-timestamp');
-  const svix_signature = headerPayload.get('svix-signature');
-
-  if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Missing svix headers', { status: 400 });
-  }
-
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
-
-  const wh = new Webhook(WEBHOOK_SECRET);
-  let evt: WebhookEvent;
-
-  try {
-    evt = wh.verify(body, {
-      'svix-id': svix_id,
-      'svix-timestamp': svix_timestamp,
-      'svix-signature': svix_signature,
-    }) as WebhookEvent;
-  } catch (err) {
-    console.error('Webhook verification failed:', err);
-    return new Response('Invalid signature', { status: 400 });
-  }
-
-  const eventType = evt.type;
-
-  if (eventType === 'user.created' || eventType === 'user.updated') {
-    const { id, email_addresses, first_name, last_name, image_url } = evt.data;
-    const primaryEmail = email_addresses.find(e => e.id === evt.data.primary_email_address_id);
-
-    await db
-      .insert(users)
-      .values({
-        id,
-        email: primaryEmail?.email_address ?? '',
-        firstName: first_name,
-        lastName: last_name,
-        imageUrl: image_url,
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: primaryEmail?.email_address ?? '',
-          firstName: first_name,
-          lastName: last_name,
-          imageUrl: image_url,
-          updatedAt: new Date(),
-        },
-      });
-  }
-
-  if (eventType === 'user.deleted') {
-    const { id } = evt.data;
-    if (id) {
-      await db.delete(users).where(eq(users.id, id));
-    }
-  }
-
-  return new Response('OK', { status: 200 });
-}
-```
-
-### 9. Server Actions Pattern
+### 10. Server Actions Pattern
 
 ```typescript
 // src/actions/documents.ts
@@ -541,7 +588,7 @@ import { redirect } from 'next/navigation';
 import { after } from 'next/server';
 import { db } from '@/lib/db';
 import { documents, activityLogs } from '@/lib/db/schema';
-import { requireOrg } from '@/lib/auth';
+import { requireOrg } from '@/lib/auth-helpers';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { createId } from '@paralleldrive/cuid2';
@@ -632,7 +679,7 @@ export async function deleteDocument(id: string) {
 }
 ```
 
-### 10. AI Integration
+### 11. AI Integration
 
 ```typescript
 // src/lib/ai/client.ts
@@ -669,7 +716,7 @@ export async function analyzeDocument(content: string, prompt?: string) {
 }
 ```
 
-### 11. Background Job with waitUntil
+### 12. Background Job with waitUntil
 
 ```typescript
 // src/app/api/ai/analyze/route.ts
@@ -730,7 +777,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### 12. Form Component Pattern
+### 13. Form Component Pattern
 
 ```typescript
 // src/components/forms/document-form.tsx
@@ -821,7 +868,7 @@ export function DocumentForm() {
 }
 ```
 
-### 13. Dashboard Layout
+### 14. Dashboard Layout
 
 ```typescript
 // src/app/(dashboard)/layout.tsx
@@ -850,7 +897,7 @@ export default async function DashboardLayout({
 }
 ```
 
-### 14. Loading States (Streaming)
+### 15. Loading States (Streaming)
 
 ```typescript
 // src/app/(dashboard)/loading.tsx
@@ -892,7 +939,7 @@ export default function DocumentsLoading() {
 }
 ```
 
-### 15. Error Boundaries
+### 16. Error Boundaries
 
 ```typescript
 // src/app/(dashboard)/error.tsx
@@ -950,7 +997,7 @@ export default function GlobalError({
 }
 ```
 
-### 16. Charts with Dynamic Import
+### 17. Charts with Dynamic Import
 
 ```typescript
 // src/components/charts/stats-chart.tsx
@@ -1014,7 +1061,7 @@ Run these in order after scaffolding:
 npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
 
 # 2. Install dependencies
-pnpm add @clerk/nextjs @neondatabase/serverless drizzle-orm @anthropic-ai/sdk @paralleldrive/cuid2 @vercel/functions svix zod react-hook-form @hookform/resolvers recharts sonner tw-animate-css clsx tailwind-merge
+pnpm add better-auth @neondatabase/serverless drizzle-orm @anthropic-ai/sdk @paralleldrive/cuid2 @vercel/functions zod react-hook-form @hookform/resolvers recharts sonner tw-animate-css clsx tailwind-merge
 
 # 3. Install dev dependencies  
 pnpm add -D drizzle-kit
@@ -1025,10 +1072,13 @@ npx shadcn@latest init
 # 5. Add shadcn components
 npx shadcn@latest add button input textarea form card table dialog dropdown-menu avatar badge separator skeleton toast sheet
 
-# 6. Generate migrations
+# 6. Generate Better Auth schema (creates auth tables)
+npx @better-auth/cli generate
+
+# 7. Generate Drizzle migrations
 pnpm drizzle-kit generate
 
-# 7. Push to database
+# 8. Push to database
 pnpm drizzle-kit push
 ```
 
@@ -1058,7 +1108,7 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
     "next": "^16.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@clerk/nextjs": "^6.36.0",
+    "better-auth": "^1.2.0",
     "@neondatabase/serverless": "^0.10.0",
     "drizzle-orm": "^0.44.0",
     "@anthropic-ai/sdk": "^0.40.0",
@@ -1072,8 +1122,7 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
     "react-hook-form": "^7.54.0",
     "@hookform/resolvers": "^3.10.0",
     "recharts": "^2.15.0",
-    "sonner": "^1.7.0",
-    "svix": "^1.40.0"
+    "sonner": "^1.7.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
@@ -1101,22 +1150,24 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 ## Implementation Order
 
 1. ✅ Initialize Next.js 16 project with all dependencies
-2. ✅ Set up environment variables
+2. ✅ Set up environment variables (BETTER_AUTH_SECRET, DATABASE_URL)
 3. ✅ Configure next.config.ts with optimizePackageImports
-4. ✅ Configure Clerk with proxy.ts (NOT middleware.ts)
-5. ✅ Set up Drizzle + Neon connection
-6. ✅ Create database schema and run migrations
-7. ✅ Build Clerk webhook handler for user sync
-8. ✅ Create auth helper functions with React.cache()
-9. ✅ Build dashboard layout with sidebar/header
-10. ✅ Add loading.tsx files for streaming
-11. ✅ Add error.tsx boundaries
-12. ✅ Create documents CRUD (pages + server actions)
-13. ✅ Add AI analysis endpoint with waitUntil
-14. ✅ Build forms with React Hook Form + Zod
-15. ✅ Add activity logging with after()
-16. ✅ Add charts with dynamic imports
-17. ✅ Polish UI with shadcn components
+4. ✅ Set up Drizzle + Neon connection
+5. ✅ Create database schema (including Better Auth tables)
+6. ✅ Run `npx @better-auth/cli generate` then migrations
+7. ✅ Configure Better Auth server (src/lib/auth.ts)
+8. ✅ Create Better Auth API route (src/app/api/auth/[...all]/route.ts)
+9. ✅ Create auth client and helpers with React.cache()
+10. ✅ Build sign-in/sign-up pages
+11. ✅ Build dashboard layout with sidebar/header
+12. ✅ Add loading.tsx files for streaming
+13. ✅ Add error.tsx boundaries
+14. ✅ Create documents CRUD (pages + server actions)
+15. ✅ Add AI analysis endpoint with waitUntil
+16. ✅ Build forms with React Hook Form + Zod
+17. ✅ Add activity logging with after()
+18. ✅ Add charts with dynamic imports
+19. ✅ Polish UI with shadcn components
 
 ## Notes
 
