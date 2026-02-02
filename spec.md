@@ -24,8 +24,8 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/
-│   │   │   ├── sign-in/[[...sign-in]]/page.tsx
-│   │   │   ├── sign-up/[[...sign-up]]/page.tsx
+│   │   │   ├── sign-in/page.tsx
+│   │   │   ├── sign-up/page.tsx
 │   │   │   └── layout.tsx
 │   │   ├── (dashboard)/
 │   │   │   ├── layout.tsx
@@ -537,7 +537,188 @@ export default function RootLayout({
 }
 ```
 
-### 9. Utility Functions
+### 9. Sign In Page
+
+```typescript
+// src/app/(auth)/sign-in/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { signIn } from '@/lib/auth-client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+
+export default function SignInPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    const { error } = await signIn.email({ email, password });
+
+    if (error) {
+      toast.error(error.message || 'Failed to sign in');
+      setIsLoading(false);
+      return;
+    }
+
+    router.push('/dashboard');
+  }
+
+  return (
+    <div className="mx-auto max-w-sm space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-2xl font-bold">Sign In</h1>
+        <p className="text-muted-foreground">
+          Enter your credentials to access your account
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input id="password" name="password" type="password" required />
+        </div>
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Signing in...' : 'Sign In'}
+        </Button>
+      </form>
+      <p className="text-center text-sm text-muted-foreground">
+        Don't have an account?{' '}
+        <Link href="/sign-up" className="underline">
+          Sign up
+        </Link>
+      </p>
+    </div>
+  );
+}
+```
+
+### 10. Sign Up Page
+
+```typescript
+// src/app/(auth)/sign-up/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { signUp } from '@/lib/auth-client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+
+export default function SignUpPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    const { error } = await signUp.email({ name, email, password });
+
+    if (error) {
+      toast.error(error.message || 'Failed to create account');
+      setIsLoading(false);
+      return;
+    }
+
+    toast.success('Account created! Please sign in.');
+    router.push('/sign-in');
+  }
+
+  return (
+    <div className="mx-auto max-w-sm space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-2xl font-bold">Create Account</h1>
+        <p className="text-muted-foreground">
+          Enter your details to get started
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Name</Label>
+          <Input id="name" name="name" placeholder="John Doe" required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            minLength={8}
+            required
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Creating account...' : 'Sign Up'}
+        </Button>
+      </form>
+      <p className="text-center text-sm text-muted-foreground">
+        Already have an account?{' '}
+        <Link href="/sign-in" className="underline">
+          Sign in
+        </Link>
+      </p>
+    </div>
+  );
+}
+```
+
+### 11. Auth Layout
+
+```typescript
+// src/app/(auth)/layout.tsx
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      {children}
+    </div>
+  );
+}
+```
+
+### 12. Utility Functions
 
 ```typescript
 // src/lib/utils.ts
@@ -577,7 +758,7 @@ export function serializeForClient<T extends Record<string, unknown>>(
 }
 ```
 
-### 10. Server Actions Pattern
+### 13. Server Actions Pattern
 
 ```typescript
 // src/actions/documents.ts
@@ -679,7 +860,7 @@ export async function deleteDocument(id: string) {
 }
 ```
 
-### 11. AI Integration
+### 14. AI Integration
 
 ```typescript
 // src/lib/ai/client.ts
@@ -716,7 +897,7 @@ export async function analyzeDocument(content: string, prompt?: string) {
 }
 ```
 
-### 12. Background Job with waitUntil
+### 15. Background Job with waitUntil
 
 ```typescript
 // src/app/api/ai/analyze/route.ts
@@ -777,7 +958,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### 13. Form Component Pattern
+### 16. Form Component Pattern
 
 ```typescript
 // src/components/forms/document-form.tsx
@@ -868,7 +1049,7 @@ export function DocumentForm() {
 }
 ```
 
-### 14. Dashboard Layout
+### 17. Dashboard Layout
 
 ```typescript
 // src/app/(dashboard)/layout.tsx
@@ -897,7 +1078,7 @@ export default async function DashboardLayout({
 }
 ```
 
-### 15. Loading States (Streaming)
+### 18. Loading States (Streaming)
 
 ```typescript
 // src/app/(dashboard)/loading.tsx
@@ -939,7 +1120,7 @@ export default function DocumentsLoading() {
 }
 ```
 
-### 16. Error Boundaries
+### 19. Error Boundaries
 
 ```typescript
 // src/app/(dashboard)/error.tsx
@@ -997,7 +1178,7 @@ export default function GlobalError({
 }
 ```
 
-### 17. Charts with Dynamic Import
+### 20. Charts with Dynamic Import
 
 ```typescript
 // src/components/charts/stats-chart.tsx
@@ -1173,10 +1354,8 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 
 - Don't create shadcn `ui/` components manually - always use `npx shadcn@latest add`
 - Use `sonner` for toast notifications (already included in shadcn)
-- The Clerk webhook needs to be set up in the Clerk dashboard pointing to `/api/webhooks/clerk`
 - For file uploads, we'll add Vercel Blob later - for now, just store URLs
 - Activity logs are for audit trail - log all CRUD operations using `after()` for non-blocking
-- **IMPORTANT**: Use `proxy.ts` NOT `middleware.ts` for Next.js 16
 - Claude 3.5 Sonnet models have been retired - use Claude Sonnet 4.5 or Opus 4.5
 - Tailwind v4 uses CSS-first config - no `tailwind.config.js` needed
 - Always wrap frequently-called data fetching functions with `React.cache()` for request deduplication
@@ -1185,6 +1364,17 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 - Add `loading.tsx` files for streaming and better perceived performance
 - Add `error.tsx` boundaries for graceful error handling
 
+## Better Auth Notes
+
+- **Self-hosted** - All auth data stays in your database, no external service dependency
+- **Email/Password** - Enabled by default, add OAuth providers later as needed
+- **Session management** - Cookie-based with optional caching for performance
+- **Re-run CLI** - After adding/changing plugins: `npx @better-auth/cli generate`
+- **API route** - All auth handled via `/api/auth/[...all]` catch-all route
+- **No middleware needed** - Better Auth doesn't require proxy.ts/middleware.ts
+- **Type safety** - Use `typeof auth.$Infer.Session` for session types
+- **MCP integration** - Add AI tools with `npx @better-auth/cli mcp --cursor`
+
 ## Next.js 16 Specific Notes
 
 - **Turbopack is default** - No need for `--turbo` flag, it's the default dev server
@@ -1192,7 +1382,7 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 - **Async Request APIs** - `headers()`, `cookies()`, `params`, `searchParams` are all async now (already reflected in code examples)
 - **Caching changes** - `fetch` requests are no longer cached by default, `GET` route handlers are not cached by default
 - **`use cache` directive** - Can use `'use cache'` for more granular caching control when needed
-- **middleware.ts → proxy.ts** - CRITICAL: Rename `middleware.ts` to `proxy.ts`. The function export should be named `proxy`. Proxy runs on Node.js runtime by default (not Edge). See the Clerk docs for updated setup.
+- **middleware.ts → proxy.ts** - In Next.js 16, `middleware.ts` is renamed to `proxy.ts` (not needed for Better Auth)
 - **Cache Components** - New programming model using PPR and `use cache` for instant navigation
 - **DevTools MCP** - Model Context Protocol integration for AI-assisted debugging
 
@@ -1201,12 +1391,6 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 If upgrading from Next.js 15, run:
 ```bash
 npx @next/codemod@canary upgrade latest
-```
-
-To migrate middleware specifically:
-```bash
-mv middleware.ts proxy.ts
-# Then rename the exported function from `middleware` to `proxy`
 ```
 
 ## Tailwind CSS v4 Notes
