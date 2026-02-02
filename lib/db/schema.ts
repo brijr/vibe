@@ -8,7 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
-import type { OrgSettings, AIOutput, DocumentMetadata } from "@/types";
+import type { OrgSettings, AIOutput, ProjectMetadata } from "@/types";
 
 // Enums
 export const documentStatusEnum = pgEnum("document_status", [
@@ -96,8 +96,8 @@ export const organizations = pgTable("organizations", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Documents
-export const documents = pgTable("documents", {
+// Projects
+export const projects = pgTable("projects", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => createId()),
@@ -109,11 +109,10 @@ export const documents = pgTable("documents", {
   }),
   title: text("title").notNull(),
   description: text("description"),
-  fileUrl: text("file_url"),
-  fileType: text("file_type"),
+  content: text("content"),
   status: documentStatusEnum("status").default("pending").notNull(),
   aiOutput: jsonb("ai_output").$type<AIOutput>(),
-  metadata: jsonb("metadata").$type<DocumentMetadata>().default({}),
+  metadata: jsonb("metadata").$type<ProjectMetadata>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -140,7 +139,7 @@ export const activityLogs = pgTable("activity_logs", {
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(user),
-  documents: many(documents),
+  projects: many(projects),
   activityLogs: many(activityLogs),
 }));
 
@@ -151,7 +150,7 @@ export const userRelations = relations(user, ({ one, many }) => ({
   }),
   sessions: many(session),
   accounts: many(account),
-  documents: many(documents),
+  projects: many(projects),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -168,13 +167,13 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const documentsRelations = relations(documents, ({ one }) => ({
+export const projectsRelations = relations(projects, ({ one }) => ({
   organization: one(organizations, {
-    fields: [documents.organizationId],
+    fields: [projects.organizationId],
     references: [organizations.id],
   }),
   createdBy: one(user, {
-    fields: [documents.createdById],
+    fields: [projects.createdById],
     references: [user.id],
   }),
 }));

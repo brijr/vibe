@@ -1,22 +1,22 @@
 import { db } from ".";
-import { documents, organizations, activityLogs } from "./schema";
+import { projects, organizations, activityLogs } from "./schema";
 import { eq, and, desc } from "drizzle-orm";
 
-export async function getDocumentsByOrg(organizationId: string) {
-  return db.query.documents.findMany({
-    where: eq(documents.organizationId, organizationId),
-    orderBy: [desc(documents.createdAt)],
+export async function getProjectsByOrg(organizationId: string) {
+  return db.query.projects.findMany({
+    where: eq(projects.organizationId, organizationId),
+    orderBy: [desc(projects.createdAt)],
     with: {
       createdBy: true,
     },
   });
 }
 
-export async function getDocumentById(id: string, organizationId: string) {
-  return db.query.documents.findFirst({
+export async function getProjectById(id: string, organizationId: string) {
+  return db.query.projects.findFirst({
     where: and(
-      eq(documents.id, id),
-      eq(documents.organizationId, organizationId)
+      eq(projects.id, id),
+      eq(projects.organizationId, organizationId)
     ),
     with: {
       createdBy: true,

@@ -19,17 +19,17 @@ export interface AIOutput {
   tokensUsed?: number;
 }
 
-export interface DocumentMetadata {
-  originalFilename?: string;
-  fileSize?: number;
-  pageCount?: number;
-  uploadedAt?: string;
+export interface ProjectMetadata {
+  source?: string;
+  tags?: string[];
+  priority?: "low" | "medium" | "high";
 }
 
-export interface SerializedDocument {
+export interface SerializedProject {
   id: string;
   title: string;
   description: string | null;
+  content: string | null;
   status: "pending" | "processing" | "completed" | "failed";
   createdAt: string;
   updatedAt: string;
