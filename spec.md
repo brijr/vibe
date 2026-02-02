@@ -409,7 +409,47 @@ export async function requireOrg() {
 }
 ```
 
-### 7. Clerk Webhook Handler
+### 7. Utility Functions
+
+```typescript
+// src/lib/utils.ts
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Format dates for display
+export function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+// Serialize records with Date fields for client components
+export function serializeForClient<T extends Record<string, unknown>>(
+  record: T
+): { [K in keyof T]: T[K] extends Date ? string : T[K] } {
+  const result = {} as { [K in keyof T]: T[K] extends Date ? string : T[K] };
+
+  for (const key in record) {
+    const value = record[key];
+    if (value instanceof Date) {
+      (result as Record<string, unknown>)[key] = value.toISOString();
+    } else {
+      (result as Record<string, unknown>)[key] = value;
+    }
+  }
+
+  return result;
+}
+```
+
+### 8. Clerk Webhook Handler
 
 ```typescript
 // src/app/api/webhooks/clerk/route.ts
@@ -490,7 +530,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### 8. Server Actions Pattern
+### 9. Server Actions Pattern
 
 ```typescript
 // src/actions/documents.ts
@@ -592,7 +632,7 @@ export async function deleteDocument(id: string) {
 }
 ```
 
-### 9. AI Integration
+### 10. AI Integration
 
 ```typescript
 // src/lib/ai/client.ts
@@ -629,7 +669,7 @@ export async function analyzeDocument(content: string, prompt?: string) {
 }
 ```
 
-### 10. Background Job with waitUntil
+### 11. Background Job with waitUntil
 
 ```typescript
 // src/app/api/ai/analyze/route.ts
@@ -690,7 +730,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### 11. Form Component Pattern
+### 12. Form Component Pattern
 
 ```typescript
 // src/components/forms/document-form.tsx
@@ -781,7 +821,7 @@ export function DocumentForm() {
 }
 ```
 
-### 12. Dashboard Layout
+### 13. Dashboard Layout
 
 ```typescript
 // src/app/(dashboard)/layout.tsx
@@ -810,7 +850,7 @@ export default async function DashboardLayout({
 }
 ```
 
-### 13. Loading States (Streaming)
+### 14. Loading States (Streaming)
 
 ```typescript
 // src/app/(dashboard)/loading.tsx
@@ -852,7 +892,7 @@ export default function DocumentsLoading() {
 }
 ```
 
-### 14. Error Boundaries
+### 15. Error Boundaries
 
 ```typescript
 // src/app/(dashboard)/error.tsx
@@ -910,7 +950,7 @@ export default function GlobalError({
 }
 ```
 
-### 15. Charts with Dynamic Import
+### 16. Charts with Dynamic Import
 
 ```typescript
 // src/components/charts/stats-chart.tsx
@@ -974,7 +1014,7 @@ Run these in order after scaffolding:
 npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
 
 # 2. Install dependencies
-pnpm add @clerk/nextjs @neondatabase/serverless drizzle-orm @anthropic-ai/sdk @paralleldrive/cuid2 @vercel/functions svix zod react-hook-form @hookform/resolvers recharts sonner tw-animate-css
+pnpm add @clerk/nextjs @neondatabase/serverless drizzle-orm @anthropic-ai/sdk @paralleldrive/cuid2 @vercel/functions svix zod react-hook-form @hookform/resolvers recharts sonner tw-animate-css clsx tailwind-merge
 
 # 3. Install dev dependencies  
 pnpm add -D drizzle-kit
@@ -1022,15 +1062,24 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
     "@neondatabase/serverless": "^0.10.0",
     "drizzle-orm": "^0.44.0",
     "@anthropic-ai/sdk": "^0.40.0",
+    "@paralleldrive/cuid2": "^2.2.0",
+    "@vercel/functions": "^1.5.0",
     "tailwindcss": "^4.0.0",
-    "tw-animate-css": "^1.0.0"
+    "tw-animate-css": "^1.0.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.5.0",
+    "zod": "^3.24.0",
+    "react-hook-form": "^7.54.0",
+    "@hookform/resolvers": "^3.10.0",
+    "recharts": "^2.15.0",
+    "sonner": "^1.7.0",
+    "svix": "^1.40.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
     "typescript": "^5.8.0"
   }
 }
-```
 ```
 
 ## Conventions
