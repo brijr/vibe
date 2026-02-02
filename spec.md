@@ -14,7 +14,7 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 | Auth | Clerk | `@clerk/nextjs` v5+, middleware-based |
 | Styling | Tailwind CSS v4 + shadcn/ui | Use `npx shadcn@latest init` |
 | Forms | React Hook Form + Zod | `@hookform/resolvers` for zod |
-| Charts | Recharts | Wrap in client components |
+| Charts | Recharts | Dynamic import, wrap in client components |
 | AI | Anthropic Claude API | `@anthropic-ai/sdk` |
 | Deployment | Vercel | Use `@vercel/functions` for `waitUntil` |
 
@@ -29,9 +29,12 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 │   │   │   └── layout.tsx
 │   │   ├── (dashboard)/
 │   │   │   ├── layout.tsx
+│   │   │   ├── loading.tsx              # Streaming skeleton for dashboard
+│   │   │   ├── error.tsx                # Error boundary for dashboard
 │   │   │   ├── page.tsx
 │   │   │   ├── documents/
 │   │   │   │   ├── page.tsx
+│   │   │   │   ├── loading.tsx          # Streaming skeleton for documents
 │   │   │   │   ├── [id]/page.tsx
 │   │   │   │   └── new/page.tsx
 │   │   │   └── settings/
@@ -43,6 +46,8 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 │   │   │       └── analyze/route.ts
 │   │   ├── layout.tsx
 │   │   ├── page.tsx (marketing landing)
+│   │   ├── global-error.tsx             # Root error boundary
+│   │   ├── not-found.tsx                # 404 page
 │   │   └── globals.css
 │   ├── components/
 │   │   ├── ui/ (shadcn - do not manually create)
@@ -68,7 +73,7 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 │   │   │   ├── client.ts
 │   │   │   └── prompts.ts
 │   │   ├── auth.ts
-│   │   ├── utils.ts
+│   │   ├── utils.ts                   # cn(), formatDate(), serializeForClient()
 │   │   └── validators.ts
 │   ├── actions/
 │   │   ├── documents.ts
@@ -82,6 +87,7 @@ Build a production-ready Next.js 16 starter for a multi-tenant SaaS application.
 ├── drizzle/
 │   └── migrations/
 ├── drizzle.config.ts
+├── next.config.ts
 ├── proxy.ts
 ├── .env.example
 ├── .env.local (gitignored)
@@ -215,7 +221,30 @@ export interface DocumentMetadata {
   pageCount?: number;
   uploadedAt?: string;
 }
+
+// Serialized versions for client components (Date → string)
+export interface SerializedDocument {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  createdAt: string; // ISO string, not Date
+  updatedAt: string; // ISO string, not Date
+}
 ```
+
+> **RSC Boundary Warning**: Date objects cannot be passed from Server to Client Components. They will silently become strings, then crash when you call `.getFullYear()` or similar methods. Always serialize dates to ISO strings on the server side:
+> ```tsx
+> // Server Component
+> const doc = await getDocument(id);
+> return <ClientCard createdAt={doc.createdAt.toISOString()} />
+>
+> // Client Component
+> function ClientCard({ createdAt }: { createdAt: string }) {
+>   const date = new Date(createdAt);
+>   return <span>{date.toLocaleDateString()}</span>;
+> }
+> ```
 
 ## Environment Variables
 
@@ -283,7 +312,36 @@ export default defineConfig({
 });
 ```
 
-### 3. Proxy (replaces Middleware in Next.js 16)
+### 3. Next.js Config
+
+```typescript
+// next.config.ts
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  // Optimize barrel file imports (200-800ms savings on cold start)
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-icons',
+      'recharts',
+    ],
+  },
+  // Add remote image domains if needed
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'img.clerk.com',
+      },
+    ],
+  },
+};
+
+export default nextConfig;
+```
+
+### 5. Proxy (replaces Middleware in Next.js 16)
 
 ```typescript
 // proxy.ts (root level - NOT middleware.ts)
@@ -311,30 +369,32 @@ export const config = {
 ```
 
 > **Next.js 16 Breaking Change**: `middleware.ts` is renamed to `proxy.ts`. The file should be at the root level (same level as `package.json` or in `src/`). The function export can still be named anything, but `proxy` is recommended. Proxy now runs on Node.js runtime by default (not Edge).
-```
 
-### 4. Auth Helpers
+### 6. Auth Helpers
 
 ```typescript
 // src/lib/auth.ts
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { cache } from 'react';
 import { db } from './db';
 import { users } from './db/schema';
 import { eq } from 'drizzle-orm';
 
-export async function getCurrentUser() {
+// React.cache() deduplicates within a single request
+// Multiple calls to getCurrentUser() in the same request will only hit the DB once
+export const getCurrentUser = cache(async () => {
   const { userId } = await auth();
   if (!userId) return null;
-  
+
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
     with: {
       organization: true,
     },
   });
-  
+
   return user;
-}
+});
 
 export async function requireUser() {
   const user = await getCurrentUser();
@@ -349,7 +409,7 @@ export async function requireOrg() {
 }
 ```
 
-### 5. Clerk Webhook Handler
+### 7. Clerk Webhook Handler
 
 ```typescript
 // src/app/api/webhooks/clerk/route.ts
@@ -430,7 +490,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### 6. Server Actions Pattern
+### 8. Server Actions Pattern
 
 ```typescript
 // src/actions/documents.ts
@@ -438,6 +498,7 @@ export async function POST(req: Request) {
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 import { db } from '@/lib/db';
 import { documents, activityLogs } from '@/lib/db/schema';
 import { requireOrg } from '@/lib/auth';
@@ -457,7 +518,7 @@ export async function createDocument(input: z.infer<typeof createDocumentSchema>
   const validated = createDocumentSchema.parse(input);
 
   const id = createId();
-  
+
   await db.insert(documents).values({
     id,
     organizationId,
@@ -465,12 +526,15 @@ export async function createDocument(input: z.infer<typeof createDocumentSchema>
     ...validated,
   });
 
-  await db.insert(activityLogs).values({
-    organizationId,
-    userId: user.id,
-    action: 'document.created',
-    resourceType: 'document',
-    resourceId: id,
+  // Non-blocking: log activity after response is sent
+  after(async () => {
+    await db.insert(activityLogs).values({
+      organizationId,
+      userId: user.id,
+      action: 'document.created',
+      resourceType: 'document',
+      resourceId: id,
+    });
   });
 
   revalidatePath('/documents');
@@ -479,7 +543,7 @@ export async function createDocument(input: z.infer<typeof createDocumentSchema>
 
 export async function getDocuments() {
   const { organizationId } = await requireOrg();
-  
+
   return db.query.documents.findMany({
     where: eq(documents.organizationId, organizationId),
     orderBy: (documents, { desc }) => [desc(documents.createdAt)],
@@ -491,7 +555,7 @@ export async function getDocuments() {
 
 export async function getDocument(id: string) {
   const { organizationId } = await requireOrg();
-  
+
   return db.query.documents.findFirst({
     where: and(
       eq(documents.id, id),
@@ -505,7 +569,7 @@ export async function getDocument(id: string) {
 
 export async function deleteDocument(id: string) {
   const { user, organizationId } = await requireOrg();
-  
+
   await db.delete(documents).where(
     and(
       eq(documents.id, id),
@@ -513,19 +577,22 @@ export async function deleteDocument(id: string) {
     )
   );
 
-  await db.insert(activityLogs).values({
-    organizationId,
-    userId: user.id,
-    action: 'document.deleted',
-    resourceType: 'document',
-    resourceId: id,
+  // Non-blocking: log activity after response is sent
+  after(async () => {
+    await db.insert(activityLogs).values({
+      organizationId,
+      userId: user.id,
+      action: 'document.deleted',
+      resourceType: 'document',
+      resourceId: id,
+    });
   });
 
   revalidatePath('/documents');
 }
 ```
 
-### 7. AI Integration
+### 9. AI Integration
 
 ```typescript
 // src/lib/ai/client.ts
@@ -562,7 +629,7 @@ export async function analyzeDocument(content: string, prompt?: string) {
 }
 ```
 
-### 8. Background Job with waitUntil
+### 10. Background Job with waitUntil
 
 ```typescript
 // src/app/api/ai/analyze/route.ts
@@ -623,7 +690,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### 9. Form Component Pattern
+### 11. Form Component Pattern
 
 ```typescript
 // src/components/forms/document-form.tsx
@@ -714,7 +781,7 @@ export function DocumentForm() {
 }
 ```
 
-### 10. Dashboard Layout
+### 12. Dashboard Layout
 
 ```typescript
 // src/app/(dashboard)/layout.tsx
@@ -739,6 +806,161 @@ export default async function DashboardLayout({
         </main>
       </div>
     </div>
+  );
+}
+```
+
+### 13. Loading States (Streaming)
+
+```typescript
+// src/app/(dashboard)/loading.tsx
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function DashboardLoading() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+      </div>
+      <Skeleton className="h-64" />
+    </div>
+  );
+}
+```
+
+```typescript
+// src/app/(dashboard)/documents/loading.tsx
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function DocumentsLoading() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-16" />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### 14. Error Boundaries
+
+```typescript
+// src/app/(dashboard)/error.tsx
+'use client';
+
+import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+
+export default function DashboardError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-16">
+      <h2 className="text-xl font-semibold">Something went wrong</h2>
+      <p className="text-muted-foreground">
+        {error.message || 'An unexpected error occurred'}
+      </p>
+      <Button onClick={reset}>Try again</Button>
+    </div>
+  );
+}
+```
+
+```typescript
+// src/app/global-error.tsx
+'use client';
+
+import { Button } from '@/components/ui/button';
+
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <html>
+      <body>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+          <h2 className="text-xl font-semibold">Something went wrong</h2>
+          <Button onClick={reset}>Try again</Button>
+        </div>
+      </body>
+    </html>
+  );
+}
+```
+
+### 15. Charts with Dynamic Import
+
+```typescript
+// src/components/charts/stats-chart.tsx
+'use client';
+
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Dynamic import Recharts (~300KB) to reduce initial bundle
+const RechartsAreaChart = dynamic(
+  () => import('recharts').then((mod) => mod.AreaChart),
+  { ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
+
+const Area = dynamic(() => import('recharts').then((mod) => mod.Area), {
+  ssr: false,
+});
+const XAxis = dynamic(() => import('recharts').then((mod) => mod.XAxis), {
+  ssr: false,
+});
+const YAxis = dynamic(() => import('recharts').then((mod) => mod.YAxis), {
+  ssr: false,
+});
+const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), {
+  ssr: false,
+});
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then((mod) => mod.ResponsiveContainer),
+  { ssr: false }
+);
+
+interface StatsChartProps {
+  data: { date: string; count: number }[];
+}
+
+export function StatsChart({ data }: StatsChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={256}>
+      <RechartsAreaChart data={data}>
+        <XAxis dataKey="date" />
+        <YAxis />
+        <Tooltip />
+        <Area
+          type="monotone"
+          dataKey="count"
+          stroke="hsl(var(--primary))"
+          fill="hsl(var(--primary) / 0.2)"
+        />
+      </RechartsAreaChart>
+    </ResponsiveContainer>
   );
 }
 ```
@@ -823,22 +1045,29 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 8. **File Structure** - Co-locate related components, keep pages thin
 9. **Naming** - kebab-case for files, PascalCase for components, camelCase for functions
 10. **Types** - Define in `src/types/`, export from schema for db types
+11. **Date Serialization** - Always serialize Date objects to ISO strings before passing to client components
+12. **Request Deduplication** - Wrap shared data fetching functions with `React.cache()`
+13. **Non-blocking Logging** - Use `after()` from `next/server` for activity logs and analytics
 
 ## Implementation Order
 
 1. ✅ Initialize Next.js 16 project with all dependencies
 2. ✅ Set up environment variables
-3. ✅ Configure Clerk with proxy.ts (NOT middleware.ts)
-4. ✅ Set up Drizzle + Neon connection
-5. ✅ Create database schema and run migrations
-6. ✅ Build Clerk webhook handler for user sync
-7. ✅ Create auth helper functions
-8. ✅ Build dashboard layout with sidebar/header
-9. ✅ Create documents CRUD (pages + server actions)
-10. ✅ Add AI analysis endpoint with waitUntil
-11. ✅ Build forms with React Hook Form + Zod
-12. ✅ Add activity logging
-13. ✅ Polish UI with shadcn components
+3. ✅ Configure next.config.ts with optimizePackageImports
+4. ✅ Configure Clerk with proxy.ts (NOT middleware.ts)
+5. ✅ Set up Drizzle + Neon connection
+6. ✅ Create database schema and run migrations
+7. ✅ Build Clerk webhook handler for user sync
+8. ✅ Create auth helper functions with React.cache()
+9. ✅ Build dashboard layout with sidebar/header
+10. ✅ Add loading.tsx files for streaming
+11. ✅ Add error.tsx boundaries
+12. ✅ Create documents CRUD (pages + server actions)
+13. ✅ Add AI analysis endpoint with waitUntil
+14. ✅ Build forms with React Hook Form + Zod
+15. ✅ Add activity logging with after()
+16. ✅ Add charts with dynamic imports
+17. ✅ Polish UI with shadcn components
 
 ## Notes
 
@@ -846,10 +1075,15 @@ Note: Turbopack is now the default dev server in Next.js 16, no `--turbo` flag n
 - Use `sonner` for toast notifications (already included in shadcn)
 - The Clerk webhook needs to be set up in the Clerk dashboard pointing to `/api/webhooks/clerk`
 - For file uploads, we'll add Vercel Blob later - for now, just store URLs
-- Activity logs are for audit trail - log all CRUD operations
+- Activity logs are for audit trail - log all CRUD operations using `after()` for non-blocking
 - **IMPORTANT**: Use `proxy.ts` NOT `middleware.ts` for Next.js 16
 - Claude 3.5 Sonnet models have been retired - use Claude Sonnet 4.5 or Opus 4.5
 - Tailwind v4 uses CSS-first config - no `tailwind.config.js` needed
+- Always wrap frequently-called data fetching functions with `React.cache()` for request deduplication
+- Serialize Date objects to ISO strings before passing to client components
+- Use dynamic imports for heavy libraries like Recharts (~300KB savings)
+- Add `loading.tsx` files for streaming and better perceived performance
+- Add `error.tsx` boundaries for graceful error handling
 
 ## Next.js 16 Specific Notes
 
