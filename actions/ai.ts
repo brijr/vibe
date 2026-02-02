@@ -3,42 +3,42 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { documents, activityLogs } from "@/lib/db/schema";
+import { projects, activityLogs } from "@/lib/db/schema";
 import { requireOrg } from "@/lib/auth-helpers";
 import { eq, and } from "drizzle-orm";
-import { analyzeDocument } from "@/lib/ai/client";
+import { analyzeContent } from "@/lib/ai/client";
 import { getPromptForType } from "@/lib/ai/prompts";
 
-export async function startDocumentAnalysis(
-  documentId: string,
-  analysisType: "general" | "legal" | "summary" = "general"
+export async function startProjectAnalysis(
+  projectId: string,
+  analysisType: "general" | "summary" | "extract" = "general"
 ) {
   const { user, organizationId } = await requireOrg();
 
-  const document = await db.query.documents.findFirst({
+  const project = await db.query.projects.findFirst({
     where: and(
-      eq(documents.id, documentId),
-      eq(documents.organizationId, organizationId)
+      eq(projects.id, projectId),
+      eq(projects.organizationId, organizationId)
     ),
   });
 
-  if (!document) {
-    throw new Error("Document not found");
+  if (!project) {
+    throw new Error("Project not found");
   }
 
   await db
-    .update(documents)
+    .update(projects)
     .set({ status: "processing", updatedAt: new Date() })
-    .where(eq(documents.id, documentId));
+    .where(eq(projects.id, projectId));
 
   after(async () => {
     try {
-      const content = document.description || document.title;
+      const content = project.content || project.description || project.title;
       const prompt = getPromptForType(analysisType, content);
-      const result = await analyzeDocument(content, prompt);
+      const result = await analyzeContent(content, prompt);
 
       await db
-        .update(documents)
+        .update(projects)
         .set({
           status: "completed",
           aiOutput: {
@@ -49,28 +49,28 @@ export async function startDocumentAnalysis(
           },
           updatedAt: new Date(),
         })
-        .where(eq(documents.id, documentId));
+        .where(eq(projects.id, projectId));
 
       await db.insert(activityLogs).values({
         organizationId,
         userId: user.id,
-        action: "document.analyzed",
-        resourceType: "document",
-        resourceId: documentId,
+        action: "project.analyzed",
+        resourceType: "project",
+        resourceId: projectId,
         metadata: { analysisType, model: result.model },
       });
     } catch (error) {
       console.error("AI analysis failed:", error);
       await db
-        .update(documents)
+        .update(projects)
         .set({
           status: "failed",
           updatedAt: new Date(),
         })
-        .where(eq(documents.id, documentId));
+        .where(eq(projects.id, projectId));
     }
   });
 
-  revalidatePath(`/documents/${documentId}`);
+  revalidatePath(`/projects/${projectId}`);
   return { status: "processing" };
 }

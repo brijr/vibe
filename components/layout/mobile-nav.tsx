@@ -29,7 +29,7 @@ interface MobileNavProps {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home03Icon },
-  { name: "Documents", href: "/documents", icon: File01Icon },
+  { name: "Projects", href: "/projects", icon: File01Icon },
   { name: "Settings", href: "/settings", icon: Settings01Icon },
 ];
 

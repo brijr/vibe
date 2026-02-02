@@ -2,10 +2,10 @@
 
 import { useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteDocument, updateDocumentStatus } from "@/actions/documents";
+import { deleteProject, updateProjectStatus } from "@/actions/projects";
 import { toast } from "sonner";
 
-export function useDocuments() {
+export function useProjects() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -13,11 +13,11 @@ export function useDocuments() {
     (id: string) => {
       startTransition(async () => {
         try {
-          await deleteDocument(id);
-          toast.success("Document deleted");
-          router.push("/documents");
+          await deleteProject(id);
+          toast.success("Project deleted");
+          router.push("/projects");
         } catch (error) {
-          toast.error("Failed to delete document");
+          toast.error("Failed to delete project");
         }
       });
     },
@@ -28,7 +28,7 @@ export function useDocuments() {
     (id: string, status: "pending" | "processing" | "completed" | "failed") => {
       startTransition(async () => {
         try {
-          await updateDocumentStatus(id, status);
+          await updateProjectStatus(id, status);
           toast.success("Status updated");
           router.refresh();
         } catch (error) {

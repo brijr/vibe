@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { AiMagicIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-interface AnalyzeDocumentButtonProps {
-  documentId: string;
+interface AnalyzeProjectButtonProps {
+  projectId: string;
+  content: string;
 }
 
-export function AnalyzeDocumentButton({
-  documentId,
-}: AnalyzeDocumentButtonProps) {
+export function AnalyzeProjectButton({
+  projectId,
+  content,
+}: AnalyzeProjectButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -23,10 +25,7 @@ export function AnalyzeDocumentButton({
         const response = await fetch("/api/ai/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            documentId,
-            content: "Sample document content for analysis",
-          }),
+          body: JSON.stringify({ projectId, content }),
         });
 
         if (!response.ok) {
@@ -44,7 +43,7 @@ export function AnalyzeDocumentButton({
   return (
     <Button onClick={handleAnalyze} disabled={isPending} variant="secondary">
       <HugeiconsIcon icon={AiMagicIcon} size={16} className="mr-2" />
-      {isPending ? "Starting..." : "Analyze"}
+      {isPending ? "Starting..." : "Analyze with AI"}
     </Button>
   );
 }

@@ -12,18 +12,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { deleteDocument } from "@/actions/documents";
+import { deleteProject } from "@/actions/projects";
 import { toast } from "sonner";
 import { Delete01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-interface DeleteDocumentButtonProps {
-  documentId: string;
+interface DeleteProjectButtonProps {
+  projectId: string;
 }
 
-export function DeleteDocumentButton({
-  documentId,
-}: DeleteDocumentButtonProps) {
+export function DeleteProjectButton({ projectId }: DeleteProjectButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -31,12 +29,12 @@ export function DeleteDocumentButton({
   function handleDelete() {
     startTransition(async () => {
       try {
-        await deleteDocument(documentId);
-        toast.success("Document deleted");
+        await deleteProject(projectId);
+        toast.success("Project deleted");
         setOpen(false);
-        router.push("/documents");
+        router.push("/projects");
       } catch (error) {
-        toast.error("Failed to delete document");
+        toast.error("Failed to delete project");
       }
     });
   }
@@ -50,9 +48,9 @@ export function DeleteDocumentButton({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Document</DialogTitle>
+          <DialogTitle>Delete Project</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this document? This action cannot be
+            Are you sure you want to delete this project? This action cannot be
             undone.
           </DialogDescription>
         </DialogHeader>

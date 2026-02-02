@@ -1,44 +1,36 @@
-export const DOCUMENT_ANALYSIS_PROMPT = `You are a document analysis assistant. Analyze the following document and provide:
+export const ANALYSIS_SYSTEM_PROMPT = `You are a helpful AI assistant that analyzes content and provides clear, structured insights. Be concise and focus on actionable information.`;
 
+export const GENERAL_ANALYSIS_PROMPT = `Analyze the following content and provide:
 1. A brief summary (2-3 sentences)
 2. Key points or findings
-3. Any important dates, names, or numbers mentioned
-4. Document type classification (contract, report, letter, etc.)
+3. Any recommendations or next steps
 
-Be concise and focus on the most important information.
-
-Document:
+Content:
 `;
 
-export const LEGAL_DOCUMENT_PROMPT = `You are a legal document analysis assistant. Analyze the following legal document and provide:
+export const SUMMARY_PROMPT = `Provide a concise summary of the following content in 2-3 paragraphs. Focus on the main purpose, key points, and any conclusions.
 
-1. Document type (contract, agreement, pleading, etc.)
-2. Parties involved
-3. Key terms and conditions
-4. Important dates and deadlines
-5. Potential risks or areas of concern
-6. Summary of obligations for each party
-
-Be thorough but concise. Flag any unusual or potentially problematic clauses.
-
-Document:
+Content:
 `;
 
-export const SUMMARY_PROMPT = `Provide a concise summary of the following document in 2-3 paragraphs. Focus on the main purpose, key points, and any action items or conclusions.
+export const EXTRACT_PROMPT = `Extract and list the key information from the following content. Include:
+- Main topics or themes
+- Important facts or data points
+- Any dates, names, or specific details mentioned
 
-Document:
+Content:
 `;
 
 export function getPromptForType(
-  type: "general" | "legal" | "summary",
+  type: "general" | "summary" | "extract",
   content: string
 ): string {
   switch (type) {
-    case "legal":
-      return LEGAL_DOCUMENT_PROMPT + content;
     case "summary":
       return SUMMARY_PROMPT + content;
+    case "extract":
+      return EXTRACT_PROMPT + content;
     default:
-      return DOCUMENT_ANALYSIS_PROMPT + content;
+      return GENERAL_ANALYSIS_PROMPT + content;
   }
 }

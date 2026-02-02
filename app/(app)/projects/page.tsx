@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { DocumentList } from "@/components/documents/document-list";
+import { ProjectList } from "@/components/projects/project-list";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
-import { documents } from "@/lib/db/schema";
+import { projects } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-export default async function DocumentsPage() {
+export default async function ProjectsPage() {
   const user = await getCurrentUser();
 
-  let docs: Array<{
+  let projectList: Array<{
     id: string;
     title: string;
     description: string | null;
@@ -21,21 +21,21 @@ export default async function DocumentsPage() {
   }> = [];
 
   if (user?.organizationId) {
-    const results = await db.query.documents.findMany({
-      where: eq(documents.organizationId, user.organizationId),
-      orderBy: [desc(documents.createdAt)],
+    const results = await db.query.projects.findMany({
+      where: eq(projects.organizationId, user.organizationId),
+      orderBy: [desc(projects.createdAt)],
       with: {
         createdBy: true,
       },
     });
 
-    docs = results.map((doc) => ({
-      id: doc.id,
-      title: doc.title,
-      description: doc.description,
-      status: doc.status,
-      createdAt: doc.createdAt,
-      createdBy: doc.createdBy ? { name: doc.createdBy.name } : null,
+    projectList = results.map((project) => ({
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      status: project.status,
+      createdAt: project.createdAt,
+      createdBy: project.createdBy ? { name: project.createdBy.name } : null,
     }));
   }
 
@@ -43,16 +43,16 @@ export default async function DocumentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Documents</h1>
+          <h1 className="text-3xl font-bold">Projects</h1>
           <p className="text-muted-foreground">
-            Manage and analyze your documents
+            Create and analyze projects with AI
           </p>
         </div>
         {user?.organizationId && (
-          <Link href="/documents/new">
+          <Link href="/projects/new">
             <Button>
               <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
-              New Document
+              New Project
             </Button>
           </Link>
         )}
@@ -60,10 +60,10 @@ export default async function DocumentsPage() {
 
       {!user?.organizationId ? (
         <div className="text-muted-foreground py-12 text-center">
-          <p>You need to be part of an organization to view documents.</p>
+          <p>You need to be part of an organization to view projects.</p>
         </div>
       ) : (
-        <DocumentList documents={docs} />
+        <ProjectList projects={projectList} />
       )}
     </div>
   );

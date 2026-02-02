@@ -1,7 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { db } from "@/lib/db";
-import { documents } from "@/lib/db/schema";
-import { analyzeDocument } from "@/lib/ai/client";
+import { projects } from "@/lib/db/schema";
+import { analyzeContent } from "@/lib/ai/client";
 import { eq } from "drizzle-orm";
 import { getServerSession } from "@/lib/auth-helpers";
 
@@ -11,26 +11,26 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { documentId, content } = await req.json();
+  const { projectId, content } = await req.json();
 
-  if (!documentId) {
-    return Response.json({ error: "Document ID required" }, { status: 400 });
+  if (!projectId) {
+    return Response.json({ error: "Project ID required" }, { status: 400 });
   }
 
   await db
-    .update(documents)
+    .update(projects)
     .set({ status: "processing", updatedAt: new Date() })
-    .where(eq(documents.id, documentId));
+    .where(eq(projects.id, projectId));
 
   waitUntil(
     (async () => {
       try {
-        const result = await analyzeDocument(
+        const result = await analyzeContent(
           content || "No content provided for analysis"
         );
 
         await db
-          .update(documents)
+          .update(projects)
           .set({
             status: "completed",
             aiOutput: {
@@ -41,19 +41,19 @@ export async function POST(req: Request) {
             },
             updatedAt: new Date(),
           })
-          .where(eq(documents.id, documentId));
+          .where(eq(projects.id, projectId));
       } catch (error) {
         console.error("AI analysis failed:", error);
         await db
-          .update(documents)
+          .update(projects)
           .set({
             status: "failed",
             updatedAt: new Date(),
           })
-          .where(eq(documents.id, documentId));
+          .where(eq(projects.id, projectId));
       }
     })()
   );
 
-  return Response.json({ status: "processing", documentId });
+  return Response.json({ status: "processing", projectId });
 }

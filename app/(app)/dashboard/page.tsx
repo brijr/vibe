@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
-import { documents } from "@/lib/db/schema";
+import { projects } from "@/lib/db/schema";
 import { eq, count, and } from "drizzle-orm";
 
 export default async function DashboardPage() {
@@ -17,24 +17,24 @@ export default async function DashboardPage() {
     const [totalResult, pendingResult, completedResult] = await Promise.all([
       db
         .select({ count: count() })
-        .from(documents)
-        .where(eq(documents.organizationId, user.organizationId)),
+        .from(projects)
+        .where(eq(projects.organizationId, user.organizationId)),
       db
         .select({ count: count() })
-        .from(documents)
+        .from(projects)
         .where(
           and(
-            eq(documents.organizationId, user.organizationId),
-            eq(documents.status, "pending")
+            eq(projects.organizationId, user.organizationId),
+            eq(projects.status, "pending")
           )
         ),
       db
         .select({ count: count() })
-        .from(documents)
+        .from(projects)
         .where(
           and(
-            eq(documents.organizationId, user.organizationId),
-            eq(documents.status, "completed")
+            eq(projects.organizationId, user.organizationId),
+            eq(projects.status, "completed")
           )
         ),
     ]);
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-muted-foreground text-sm font-medium">
-              Total Documents
+              Total Projects
             </CardTitle>
           </CardHeader>
           <CardContent>

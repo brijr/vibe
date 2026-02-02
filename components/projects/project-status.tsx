@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-interface DocumentStatusProps {
+interface ProjectStatusProps {
   status: "pending" | "processing" | "completed" | "failed";
 }
 
@@ -23,7 +23,7 @@ const statusConfig = {
   },
 };
 
-export function DocumentStatus({ status }: DocumentStatusProps) {
+export function ProjectStatus({ status }: ProjectStatusProps) {
   const config = statusConfig[status];
 
   return <Badge variant={config.variant}>{config.label}</Badge>;

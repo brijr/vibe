@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DocumentStatus } from "./document-status";
+import { ProjectStatus } from "./project-status";
 import { formatDate } from "@/lib/utils";
 
-interface DocumentCardProps {
-  document: {
+interface ProjectCardProps {
+  project: {
     id: string;
     title: string;
     description: string | null;
@@ -16,30 +16,30 @@ interface DocumentCardProps {
   };
 }
 
-export function DocumentCard({ document }: DocumentCardProps) {
+export function ProjectCard({ project }: ProjectCardProps) {
   return (
-    <Link href={`/documents/${document.id}`}>
+    <Link href={`/projects/${project.id}`}>
       <Card className="hover:bg-muted/50 transition-colors">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="line-clamp-1 text-base">
-              {document.title}
+              {project.title}
             </CardTitle>
-            <DocumentStatus status={document.status} />
+            <ProjectStatus status={project.status} />
           </div>
         </CardHeader>
         <CardContent>
-          {document.description && (
+          {project.description && (
             <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
-              {document.description}
+              {project.description}
             </p>
           )}
           <div className="text-muted-foreground flex items-center gap-2 text-xs">
-            <span>{formatDate(document.createdAt)}</span>
-            {document.createdBy && (
+            <span>{formatDate(project.createdAt)}</span>
+            {project.createdBy && (
               <>
                 <span>•</span>
-                <span>{document.createdBy.name}</span>
+                <span>{project.createdBy.name}</span>
               </>
             )}
           </div>
