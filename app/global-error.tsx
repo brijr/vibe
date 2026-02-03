@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Layout, Center } from "@/components/ds";
 
 export default function GlobalError({
   error,
@@ -10,16 +11,16 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html>
+    <Layout>
       <body>
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <Center>
           <h2 className="text-xl font-semibold">Something went wrong</h2>
           <p className="text-muted-foreground">
             {error.message || "An unexpected error occurred"}
           </p>
           <Button onClick={reset}>Try again</Button>
-        </div>
+        </Center>
       </body>
-    </html>
+    </Layout>
   );
 }

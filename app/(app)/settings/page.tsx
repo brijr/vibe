@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { SettingsForm } from "@/components/forms/settings-form";
+import { Container } from "@/components/ds";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
@@ -10,7 +11,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <Container size="2xl" className="space-y-6 p-0">
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Manage your account settings</p>
@@ -53,6 +54,6 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </Container>
   );
 }

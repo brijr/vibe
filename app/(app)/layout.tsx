@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import { Main } from "@/components/ds";
 
 export default async function DashboardLayout({
   children,
@@ -19,7 +20,7 @@ export default async function DashboardLayout({
       <Sidebar user={user} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header user={user} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <Main className="flex-1 overflow-y-auto p-6">{children}</Main>
       </div>
     </div>
   );
