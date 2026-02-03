@@ -46,6 +46,7 @@ Required variables:
 | `BETTER_AUTH_SECRET` | Auth secret (min 32 chars). Generate with `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | Your app URL (e.g., `http://localhost:3000`) |
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway API key |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage token |
 | `NEXT_PUBLIC_APP_URL` | Public app URL |
 
 ### 3. Set up the database
@@ -74,7 +75,8 @@ src/
 │   │   └── settings/     # User/org settings
 │   └── api/
 │       ├── auth/         # Better Auth handler
-│       └── ai/           # AI analysis endpoint
+│       ├── ai/           # AI analysis endpoint
+│       └── upload/       # File upload endpoint
 ├── components/
 │   ├── layout/           # Sidebar, header, mobile nav
 │   ├── projects/         # Project cards, lists
@@ -84,7 +86,8 @@ src/
 │   ├── db/               # Database connection & schema
 │   ├── ai/               # AI client & prompts
 │   ├── auth.ts           # Better Auth config
-│   └── auth-helpers.ts   # Session utilities
+│   ├── auth-helpers.ts   # Session utilities
+│   └── blob.ts           # Vercel Blob utilities
 ├── actions/              # Server actions
 ├── hooks/                # React hooks
 └── types/                # TypeScript types
@@ -114,6 +117,33 @@ const { text } = await generateText({
   model: "openai/gpt-4o", // Change model here
   prompt: userPrompt,
 });
+```
+
+## File Uploads
+
+The starter includes Vercel Blob for file storage. Upload files via the API:
+
+```typescript
+const formData = new FormData();
+formData.append("file", file);
+
+const res = await fetch("/api/upload", {
+  method: "POST",
+  body: formData,
+});
+
+const { url } = await res.json();
+```
+
+Or use the utility functions directly in server code:
+
+```typescript
+import { uploadFile, deleteFile } from "@/lib/blob";
+
+const blob = await uploadFile(file, "uploads/document.pdf");
+console.log(blob.url);
+
+await deleteFile(blob.url);
 ```
 
 ## Customization
