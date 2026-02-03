@@ -1,36 +1,147 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vibe Starter
 
-## Getting Started
+A production-ready Next.js 16 SaaS starter with authentication, database, and AI integration built-in.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 16 with App Router and Turbopack
+- **Database**: Neon Postgres + Drizzle ORM
+- **Auth**: Better Auth (email/password)
+- **AI**: Vercel AI SDK with AI Gateway
+- **Styling**: Tailwind CSS v4 + shadcn/ui (Radix Nova style)
+- **Icons**: HugeIcons React
+- **Runtime**: Bun
+
+## Features
+
+- Multi-tenant architecture with organizations
+- Project management with CRUD operations
+- AI-powered content analysis (background processing)
+- Activity logging for audit trails
+- Responsive dashboard with sidebar navigation
+- Form validation with Zod + React Hook Form
+- Type-safe database queries
+
+## Quick Start
+
+### 1. Install dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
+```
+
+### 2. Set up environment variables
+
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Required variables:
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Neon Postgres connection string |
+| `BETTER_AUTH_SECRET` | Auth secret (min 32 chars). Generate with `openssl rand -base64 32` |
+| `BETTER_AUTH_URL` | Your app URL (e.g., `http://localhost:3000`) |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway API key |
+| `NEXT_PUBLIC_APP_URL` | Public app URL |
+
+### 3. Set up the database
+
+```bash
+bun db:push
+```
+
+### 4. Run the development server
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── (auth)/           # Auth pages (sign-in, sign-up)
+│   ├── (app)/            # Protected app routes
+│   │   ├── dashboard/    # Dashboard home
+│   │   ├── projects/     # Project CRUD
+│   │   └── settings/     # User/org settings
+│   └── api/
+│       ├── auth/         # Better Auth handler
+│       └── ai/           # AI analysis endpoint
+├── components/
+│   ├── layout/           # Sidebar, header, mobile nav
+│   ├── projects/         # Project cards, lists
+│   ├── forms/            # Form components
+│   └── ui/               # shadcn/ui components
+├── lib/
+│   ├── db/               # Database connection & schema
+│   ├── ai/               # AI client & prompts
+│   ├── auth.ts           # Better Auth config
+│   └── auth-helpers.ts   # Session utilities
+├── actions/              # Server actions
+├── hooks/                # React hooks
+└── types/                # TypeScript types
+```
 
-## Learn More
+## Database Commands
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+bun db:generate  # Generate migrations
+bun db:push      # Push schema to database
+bun db:studio    # Open Drizzle Studio
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## AI Integration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The starter uses Vercel AI Gateway which supports multiple providers with a single API key:
 
-## Deploy on Vercel
+- `anthropic/claude-sonnet-4.5`
+- `anthropic/claude-opus-4.5`
+- `openai/gpt-4o`
+- `google/gemini-2.0-flash`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+To change the model, edit `lib/ai/client.ts`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```typescript
+const { text } = await generateText({
+  model: "openai/gpt-4o", // Change model here
+  prompt: userPrompt,
+});
+```
+
+## Customization
+
+### Adding new routes
+
+1. Create a new folder in `app/(app)/your-feature/`
+2. Add a `page.tsx` file
+3. Update the sidebar in `components/layout/sidebar.tsx`
+
+### Adding database tables
+
+1. Define the table in `lib/db/schema.ts`
+2. Run `bun db:push` to sync with database
+3. Create server actions in `actions/`
+
+### Changing the theme
+
+Edit `app/globals.css` to modify the Radix Nova color tokens.
+
+## Deploy
+
+Deploy to Vercel with one click:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/brijr/vibe-starter)
+
+Set your environment variables in the Vercel dashboard.
+
+## License
+
+MIT
