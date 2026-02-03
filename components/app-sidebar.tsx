@@ -14,6 +14,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Home09Icon, Settings02Icon } from "@hugeicons/core-free-icons";
 
 interface AppSidebarProps {
   user: {
@@ -24,8 +26,8 @@ interface AppSidebarProps {
 }
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "Settings", href: "/settings" },
+  { name: "Dashboard", href: "/dashboard", icon: Home09Icon },
+  { name: "Settings", href: "/settings", icon: Settings02Icon },
 ];
 
 export function AppSidebar({ user }: AppSidebarProps) {
@@ -56,7 +58,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   <SidebarMenuItem key={item.name}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.name}>
                       <Link href={item.href}>
-                        <span className="text-sm">{item.name}</span>
+                        <HugeiconsIcon icon={item.icon} size={18} />
+                        <span>{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
