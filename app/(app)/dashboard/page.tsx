@@ -1,50 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
-import { eq, count, and } from "drizzle-orm";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-
-  let stats = {
-    total: 0,
-    pending: 0,
-    completed: 0,
-  };
-
-  if (user?.organizationId) {
-    const [totalResult, pendingResult, completedResult] = await Promise.all([
-      db
-        .select({ count: count() })
-        .from(projects)
-        .where(eq(projects.organizationId, user.organizationId)),
-      db
-        .select({ count: count() })
-        .from(projects)
-        .where(
-          and(
-            eq(projects.organizationId, user.organizationId),
-            eq(projects.status, "pending")
-          )
-        ),
-      db
-        .select({ count: count() })
-        .from(projects)
-        .where(
-          and(
-            eq(projects.organizationId, user.organizationId),
-            eq(projects.status, "completed")
-          )
-        ),
-    ]);
-
-    stats = {
-      total: totalResult[0]?.count ?? 0,
-      pending: pendingResult[0]?.count ?? 0,
-      completed: completedResult[0]?.count ?? 0,
-    };
-  }
 
   return (
     <div className="space-y-6">
@@ -59,45 +17,34 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-muted-foreground text-sm font-medium">
-              Total Projects
+              Metric 1
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">0</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-muted-foreground text-sm font-medium">
-              Pending
+              Metric 2
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
+            <div className="text-2xl font-bold">0</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-muted-foreground text-sm font-medium">
-              Completed
+              Metric 3
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
+            <div className="text-2xl font-bold">0</div>
           </CardContent>
         </Card>
       </div>
-
-      {!user?.organizationId && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground text-center">
-              You are not part of any organization yet. Contact your
-              administrator to get started.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

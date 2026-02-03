@@ -1,177 +1,123 @@
 # Vibe Starter
 
-A production-ready Next.js 16 SaaS starter with authentication, database, and AI integration built-in.
+A minimal Next.js 16 SaaS starter with auth, database, AI, and file uploads ready to go.
 
-## Tech Stack
+## Stack
 
-- **Framework**: Next.js 16 with App Router and Turbopack
-- **Database**: Neon Postgres + Drizzle ORM
-- **Auth**: Better Auth (email/password)
-- **AI**: Vercel AI SDK with AI Gateway
-- **Styling**: Tailwind CSS v4 + shadcn/ui (Radix Nova style)
-- **Icons**: HugeIcons React
-- **Runtime**: Bun
-
-## Features
-
-- Multi-tenant architecture with organizations
-- Project management with CRUD operations
-- AI-powered content analysis (background processing)
-- Activity logging for audit trails
-- Responsive dashboard with sidebar navigation
-- Form validation with Zod + React Hook Form
-- Type-safe database queries
+- **Next.js 16** - App Router, Turbopack, React 19
+- **Neon + Drizzle** - Postgres database with type-safe ORM
+- **Better Auth** - Email/password authentication
+- **Vercel AI SDK** - AI Gateway for multiple providers
+- **Vercel Blob** - File uploads
+- **Tailwind v4 + shadcn/ui** - Styling (Radix Nova)
 
 ## Quick Start
 
-### 1. Install dependencies
-
 ```bash
+# Install
 bun install
-```
 
-### 2. Set up environment variables
-
-Copy `.env.example` to `.env` and fill in your values:
-
-```bash
+# Set up env
 cp .env.example .env
+
+# Push schema to database
+bun db:push
+
+# Run dev server
+bun dev
 ```
 
-Required variables:
+## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | Neon Postgres connection string |
-| `BETTER_AUTH_SECRET` | Auth secret (min 32 chars). Generate with `openssl rand -base64 32` |
-| `BETTER_AUTH_URL` | Your app URL (e.g., `http://localhost:3000`) |
-| `AI_GATEWAY_API_KEY` | Vercel AI Gateway API key |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage token |
-| `NEXT_PUBLIC_APP_URL` | Public app URL |
+| `BETTER_AUTH_SECRET` | Auth secret (min 32 chars) |
+| `BETTER_AUTH_URL` | App URL |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway key |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token |
 
-### 3. Set up the database
-
-```bash
-bun db:push
-```
-
-### 4. Run the development server
-
-```bash
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-## Project Structure
+## Structure
 
 ```
-src/
 ├── app/
-│   ├── (auth)/           # Auth pages (sign-in, sign-up)
-│   ├── (app)/            # Protected app routes
-│   │   ├── dashboard/    # Dashboard home
-│   │   ├── projects/     # Project CRUD
-│   │   └── settings/     # User/org settings
-│   └── api/
-│       ├── auth/         # Better Auth handler
-│       ├── ai/           # AI analysis endpoint
-│       └── upload/       # File upload endpoint
-├── components/
-│   ├── layout/           # Sidebar, header, mobile nav
-│   ├── projects/         # Project cards, lists
-│   ├── forms/            # Form components
-│   └── ui/               # shadcn/ui components
+│   ├── (auth)/           # Sign in/up pages
+│   ├── (app)/            # Protected dashboard
+│   └── api/              # Auth + upload routes
 ├── lib/
-│   ├── db/               # Database connection & schema
-│   ├── ai/               # AI client & prompts
-│   ├── auth.ts           # Better Auth config
-│   ├── auth-helpers.ts   # Session utilities
-│   └── blob.ts           # Vercel Blob utilities
-├── actions/              # Server actions
-├── hooks/                # React hooks
-└── types/                # TypeScript types
+│   ├── db/schema.ts      # Database tables
+│   ├── ai/client.ts      # AI helper
+│   ├── blob.ts           # File upload helper
+│   ├── auth.ts           # Auth config
+│   └── validators.ts     # Zod schemas
+└── components/
+    ├── layout/           # Sidebar, header
+    └── ui/               # shadcn components
 ```
 
-## Database Commands
+## Patterns
+
+### Database
+
+```typescript
+// lib/db/schema.ts - Add tables
+export const items = pgTable("items", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  organizationId: text("organization_id")
+    .references(() => organizations.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+### Server Actions
+
+```typescript
+// actions/items.ts
+"use server";
+
+import { db } from "@/lib/db";
+import { items } from "@/lib/db/schema";
+import { requireOrg } from "@/lib/auth-helpers";
+
+export async function createItem(name: string) {
+  const { organizationId } = await requireOrg();
+
+  const [item] = await db
+    .insert(items)
+    .values({ name, organizationId })
+    .returning();
+
+  return item;
+}
+```
+
+### AI
+
+```typescript
+import { generate } from "@/lib/ai/client";
+
+const result = await generate("Summarize this text", {
+  system: "You are a helpful assistant",
+  model: "anthropic/claude-sonnet-4.5", // or openai/gpt-4o
+});
+```
+
+### File Uploads
+
+```typescript
+import { uploadFile } from "@/lib/blob";
+
+const blob = await uploadFile(file, "uploads/doc.pdf");
+console.log(blob.url);
+```
+
+## Commands
 
 ```bash
-bun db:generate  # Generate migrations
-bun db:push      # Push schema to database
+bun dev          # Dev server
+bun build        # Production build
+bun db:push      # Push schema to DB
 bun db:studio    # Open Drizzle Studio
 ```
-
-## AI Integration
-
-The starter uses Vercel AI Gateway which supports multiple providers with a single API key:
-
-- `anthropic/claude-sonnet-4.5`
-- `anthropic/claude-opus-4.5`
-- `openai/gpt-4o`
-- `google/gemini-2.0-flash`
-
-To change the model, edit `lib/ai/client.ts`:
-
-```typescript
-const { text } = await generateText({
-  model: "openai/gpt-4o", // Change model here
-  prompt: userPrompt,
-});
-```
-
-## File Uploads
-
-The starter includes Vercel Blob for file storage. Upload files via the API:
-
-```typescript
-const formData = new FormData();
-formData.append("file", file);
-
-const res = await fetch("/api/upload", {
-  method: "POST",
-  body: formData,
-});
-
-const { url } = await res.json();
-```
-
-Or use the utility functions directly in server code:
-
-```typescript
-import { uploadFile, deleteFile } from "@/lib/blob";
-
-const blob = await uploadFile(file, "uploads/document.pdf");
-console.log(blob.url);
-
-await deleteFile(blob.url);
-```
-
-## Customization
-
-### Adding new routes
-
-1. Create a new folder in `app/(app)/your-feature/`
-2. Add a `page.tsx` file
-3. Update the sidebar in `components/layout/sidebar.tsx`
-
-### Adding database tables
-
-1. Define the table in `lib/db/schema.ts`
-2. Run `bun db:push` to sync with database
-3. Create server actions in `actions/`
-
-### Changing the theme
-
-Edit `app/globals.css` to modify the Radix Nova color tokens.
-
-## Deploy
-
-Deploy to Vercel with one click:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/brijr/vibe-starter)
-
-Set your environment variables in the Vercel dashboard.
-
-## License
-
-MIT

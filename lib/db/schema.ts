@@ -8,21 +8,15 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
-import type { OrgSettings, AIOutput, ProjectMetadata } from "@/types";
 
-// Enums
-export const documentStatusEnum = pgEnum("document_status", [
-  "pending",
-  "processing",
-  "completed",
-  "failed",
-]);
+// ============================================
+// Enums - Add your custom enums here
+// ============================================
 
 export const userRoleEnum = pgEnum("user_role", ["owner", "admin", "member"]);
 
 // ============================================
-// Better Auth Tables (managed by better-auth)
-// Run: npx @better-auth/cli generate
+// Better Auth Tables (required)
 // ============================================
 
 export const user = pgTable("user", {
@@ -33,7 +27,7 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  // Extended fields for multi-tenancy
+  // Extended fields
   organizationId: text("organization_id").references(() => organizations.id, {
     onDelete: "set null",
   }),
@@ -81,57 +75,30 @@ export const verification = pgTable("verification", {
 });
 
 // ============================================
-// Application Tables
+// Application Tables - Add your tables here
 // ============================================
 
-// Organizations (firms/tenants)
+// Organizations (multi-tenant pattern)
 export const organizations = pgTable("organizations", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => createId()),
   name: text("name").notNull(),
   slug: text("slug").unique().notNull(),
-  settings: jsonb("settings").$type<OrgSettings>().default({}),
+  settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Projects
-export const projects = pgTable("projects", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  organizationId: text("organization_id")
-    .references(() => organizations.id, { onDelete: "cascade" })
-    .notNull(),
-  createdById: text("created_by_id").references(() => user.id, {
-    onDelete: "set null",
-  }),
-  title: text("title").notNull(),
-  description: text("description"),
-  content: text("content"),
-  status: documentStatusEnum("status").default("pending").notNull(),
-  aiOutput: jsonb("ai_output").$type<AIOutput>(),
-  metadata: jsonb("metadata").$type<ProjectMetadata>().default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Activity log for audit trail
-export const activityLogs = pgTable("activity_logs", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  organizationId: text("organization_id")
-    .references(() => organizations.id, { onDelete: "cascade" })
-    .notNull(),
-  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
-  action: text("action").notNull(),
-  resourceType: text("resource_type").notNull(),
-  resourceId: text("resource_id"),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// Example: Add your own tables following this pattern
+// export const items = pgTable("items", {
+//   id: text("id").primaryKey().$defaultFn(() => createId()),
+//   organizationId: text("organization_id")
+//     .references(() => organizations.id, { onDelete: "cascade" })
+//     .notNull(),
+//   name: text("name").notNull(),
+//   createdAt: timestamp("created_at").defaultNow().notNull(),
+// });
 
 // ============================================
 // Relations
@@ -139,8 +106,6 @@ export const activityLogs = pgTable("activity_logs", {
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(user),
-  projects: many(projects),
-  activityLogs: many(activityLogs),
 }));
 
 export const userRelations = relations(user, ({ one, many }) => ({
@@ -150,7 +115,6 @@ export const userRelations = relations(user, ({ one, many }) => ({
   }),
   sessions: many(session),
   accounts: many(account),
-  projects: many(projects),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -163,28 +127,6 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
-    references: [user.id],
-  }),
-}));
-
-export const projectsRelations = relations(projects, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [projects.organizationId],
-    references: [organizations.id],
-  }),
-  createdBy: one(user, {
-    fields: [projects.createdById],
-    references: [user.id],
-  }),
-}));
-
-export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [activityLogs.organizationId],
-    references: [organizations.id],
-  }),
-  user: one(user, {
-    fields: [activityLogs.userId],
     references: [user.id],
   }),
 }));

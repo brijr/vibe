@@ -4,11 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Home03Icon,
-  File01Icon,
-  Settings01Icon,
-} from "@hugeicons/core-free-icons";
+import { Home03Icon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 interface SidebarProps {
@@ -21,7 +17,6 @@ interface SidebarProps {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home03Icon },
-  { name: "Projects", href: "/projects", icon: File01Icon },
   { name: "Settings", href: "/settings", icon: Settings01Icon },
 ];
 
@@ -32,7 +27,7 @@ export function Sidebar({ user }: SidebarProps) {
     <aside className="border-border bg-background hidden w-64 flex-shrink-0 border-r lg:flex lg:flex-col">
       <div className="border-border flex h-16 items-center border-b px-6">
         <Link href="/" className="text-xl font-bold">
-          SaaS Starter
+          Starter
         </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4">
