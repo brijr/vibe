@@ -3,7 +3,7 @@ import { put, del, list } from "@vercel/blob";
 export async function uploadFile(
   file: File | Blob,
   pathname: string,
-  options?: { access?: "public" | "private" }
+  options?: { access?: "public" }
 ) {
   const blob = await put(pathname, file, {
     access: options?.access ?? "public",
