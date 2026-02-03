@@ -26,11 +26,13 @@ export default async function HomePage() {
           <li>Neon Postgres</li>
           <li>Vercel Blob</li>
           <li>AI SDK</li>
+          <li>Craft DS</li>
+          <li>shadcn/ui</li>
         </ul>
 
         <div className="mt-12 flex gap-6 text-sm">
           <a
-            href="https://github.com/brijr/vibe-starter"
+            href="https://github.com/brijr/vibe"
             className="text-foreground underline underline-offset-4 hover:no-underline"
           >
             GitHub
