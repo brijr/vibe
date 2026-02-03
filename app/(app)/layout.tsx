@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Header } from "@/components/layout/header";
+import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from "@/components/app-header";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { Main } from "@/components/ds";
+import { Main, Container } from "@/components/ds";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 export default async function DashboardLayout({
   children,
@@ -16,12 +17,16 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar user={user} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header user={user} />
-        <Main className="flex-1 overflow-y-auto p-6">{children}</Main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar user={user} />
+      <SidebarInset>
+        <AppHeader user={user} />
+        <Main className="flex-1 overflow-y-auto">
+          <Container size="3xl" className="py-8">
+            {children}
+          </Container>
+        </Main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

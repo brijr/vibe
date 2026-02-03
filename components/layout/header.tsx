@@ -11,7 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MobileNav } from "./mobile-nav";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 interface HeaderProps {
@@ -32,10 +33,10 @@ export function Header({ user }: HeaderProps) {
   }
 
   return (
-    <header className="border-border bg-background flex h-16 items-center justify-between border-b px-4 lg:px-6">
-      <div className="flex items-center gap-4">
-        <MobileNav user={user} />
-        <h1 className="text-lg font-semibold lg:hidden">SaaS Starter</h1>
+    <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

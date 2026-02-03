@@ -1,50 +1,32 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth-helpers";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.name || "User"}
-        </p>
-      </div>
+    <div className="max-w-md">
+      <h1 className="font-mono text-sm">Dashboard</h1>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">
-              Metric 1
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">
-              Metric 2
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">
-              Metric 3
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-          </CardContent>
-        </Card>
-      </div>
+      <p className="text-muted-foreground mt-8 text-sm leading-relaxed">
+        Welcome back, {user?.name || "User"}.
+      </p>
+
+      <dl className="mt-8 space-y-4 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Name</dt>
+          <dd>{user?.name}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Email</dt>
+          <dd>{user?.email}</dd>
+        </div>
+        {user?.organization && (
+          <div>
+            <dt className="text-muted-foreground">Organization</dt>
+            <dd>{user.organization.name}</dd>
+          </div>
+        )}
+      </dl>
     </div>
   );
 }
