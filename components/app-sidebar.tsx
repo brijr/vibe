@@ -15,7 +15,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Home09Icon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { Home09Icon, Settings02Icon, Asterisk02Icon, UserIcon } from "@hugeicons/core-free-icons";
 
 interface AppSidebarProps {
   user: {
@@ -38,8 +38,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton asChild tooltip="brijr/vibe">
               <Link href="/">
+                <HugeiconsIcon icon={Asterisk02Icon} size={18} />
                 <span className="font-mono text-xs">brijr/vibe</span>
               </Link>
             </SidebarMenuButton>
@@ -72,10 +73,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="cursor-default">
-              <span className="text-muted-foreground truncate text-xs">
-                {user.email}
-              </span>
+            <SidebarMenuButton className="cursor-default" tooltip={user.email}>
+              <HugeiconsIcon icon={UserIcon} size={18} />
+              <span className="truncate text-xs">{user.email}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
