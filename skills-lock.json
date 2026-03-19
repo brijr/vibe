@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "calm-ui": {
+      "source": "brijr/skills",
+      "sourceType": "github",
+      "computedHash": "ab0721ec6422ca1922e2259e6f70077d0d2510daae837f37f738b91eeb0f5403"
+    },
+    "pragmatic": {
+      "source": "brijr/skills",
+      "sourceType": "github",
+      "computedHash": "37b87a0e1ca769e21e31d310665b38dd01370de341127738d0cef9e0db63289c"
+    }
+  }
+}
