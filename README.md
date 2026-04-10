@@ -15,10 +15,10 @@ This repo is intended for AI agents as well as humans, so the patterns below are
 ## Quick Start
 
 ```bash
-bun install
+pnpm install
 cp .env.example .env
-bun db:push
-bun dev
+pnpm db:push
+pnpm dev
 ```
 
 The app runs at `http://localhost:3000`.
@@ -28,9 +28,9 @@ The app runs at `http://localhost:3000`.
 Tests use [Vitest](https://vitest.dev/). Test files follow `*.test.ts` / `*.test.tsx` conventions.
 
 ```bash
-bun run test              # Run all tests once
-bun run test:watch        # Watch mode
-npx vitest run path/to/file.test.ts  # Run a single file
+pnpm test                 # Run all tests once
+pnpm test:watch           # Watch mode
+pnpm vitest run path/to/file.test.ts  # Run a single file
 ```
 
 ## Environment Variables
@@ -116,7 +116,7 @@ export const itemsRelations = relations(items, ({ one }) => ({
 Then sync to the database:
 
 ```bash
-bun db:push
+pnpm db:push
 ```
 
 ### Create a Server Action
@@ -276,17 +276,17 @@ async function upload(file: File) {
 ## Commands
 
 ```bash
-bun dev              # Start dev server
-bun run build        # Production build
-bun start            # Start production server
-bun lint             # Run ESLint
+pnpm dev             # Start dev server
+pnpm build           # Production build
+pnpm start           # Start production server
+pnpm lint            # Run ESLint
 
-bun run test         # Run tests once
-bun run test:watch   # Run tests in watch mode
+pnpm test            # Run tests once
+pnpm test:watch      # Run tests in watch mode
 
-bun db:push          # Push schema changes to database
-bun db:generate      # Generate migrations
-bun db:studio        # Open Drizzle Studio
+pnpm db:push         # Push schema changes to database
+pnpm db:generate     # Generate migrations
+pnpm db:studio       # Open Drizzle Studio
 ```
 
 ## Conventions

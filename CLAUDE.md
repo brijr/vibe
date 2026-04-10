@@ -5,17 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-bun dev              # Start dev server at localhost:3000
-bun run build        # Production build (not bare `bun build` — that invokes bun's bundler)
-bun lint             # Run ESLint
+pnpm dev             # Start dev server at localhost:3000
+pnpm build           # Production build
+pnpm lint            # Run ESLint
 
-bun run test         # Run tests once (vitest)
-bun run test:watch   # Run tests in watch mode
-npx vitest run path/to/file.test.ts  # Run a single test file
+pnpm test            # Run tests once (vitest)
+pnpm test:watch      # Run tests in watch mode
+pnpm vitest run path/to/file.test.ts  # Run a single test file
 
-bun db:push          # Push schema changes to database
-bun db:generate      # Generate migrations
-bun db:studio        # Open Drizzle Studio
+pnpm db:push         # Push schema changes to database
+pnpm db:generate     # Generate migrations
+pnpm db:studio       # Open Drizzle Studio
 ```
 
 ## Architecture
@@ -156,7 +156,7 @@ import { uploadFile, deleteFile, listFiles } from "@/lib/blob";
 
 | File | Reason |
 |------|--------|
-| `lib/db/schema.ts` | Requires `bun db:push` after changes |
+| `lib/db/schema.ts` | Requires `pnpm db:push` after changes |
 | `lib/auth.ts` | Auth configuration (session expiry: 7d, cookie cache: 5min) |
 | `components/ui/*` | shadcn components — prefer CLI updates |
 
