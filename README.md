@@ -23,6 +23,16 @@ bun dev
 
 The app runs at `http://localhost:3000`.
 
+## Testing
+
+Tests use [Vitest](https://vitest.dev/). Test files follow `*.test.ts` / `*.test.tsx` conventions.
+
+```bash
+bun run test              # Run all tests once
+bun run test:watch        # Watch mode
+npx vitest run path/to/file.test.ts  # Run a single file
+```
+
 ## Environment Variables
 
 | Variable | Description | Notes |
@@ -266,14 +276,17 @@ async function upload(file: File) {
 ## Commands
 
 ```bash
-bun dev
-bun build
-bun start
-bun lint
+bun dev              # Start dev server
+bun run build        # Production build
+bun start            # Start production server
+bun lint             # Run ESLint
 
-bun db:push
-bun db:generate
-bun db:studio
+bun run test         # Run tests once
+bun run test:watch   # Run tests in watch mode
+
+bun db:push          # Push schema changes to database
+bun db:generate      # Generate migrations
+bun db:studio        # Open Drizzle Studio
 ```
 
 ## Conventions
